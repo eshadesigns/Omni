@@ -1,7 +1,7 @@
-// src/i18n/translations.js
+// src/utils/translations.js
 // ─────────────────────────────────────────────
 // All UI strings in English and Spanish.
-// Import `useTranslation` in any component.
+// Provides translation data and a simple hook for screen components.
 // ─────────────────────────────────────────────
 
 import { useApp } from "../context/AppContext";
@@ -13,9 +13,9 @@ export const translations = {
     intentQ: "What would you like help with today?",
     intents: [
       { id: "class_help", label: "We're not sure what classes to choose" },
-      { id: "college",    label: "Understand college requirements" },
-      { id: "check_track",label: "Check if my child is on the right track" },
-      { id: "scratch",    label: "Start from scratch" },
+      { id: "college", label: "Understand college requirements" },
+      { id: "check_track", label: "Check if my child is on the right track" },
+      { id: "scratch", label: "Start from scratch" },
     ],
     gradeTitle: "Tell us a bit about your child",
     gradeLabel: "Select Your Child's Education Level",
@@ -53,15 +53,16 @@ export const translations = {
     collegeRange: "College range:",
     mostLikely: "Most likely outcome:",
   },
+
   es: {
     tagline: "Toma las decisiones escolares correctas antes de que moldeen el futuro de tu hijo",
     cta: "Explorar Su Camino",
     intentQ: "¿Con qué te gustaría ayuda hoy?",
     intents: [
       { id: "class_help", label: "No estamos seguros qué clases elegir" },
-      { id: "college",    label: "Entender los requisitos universitarios" },
-      { id: "check_track",label: "Verificar si mi hijo va por buen camino" },
-      { id: "scratch",    label: "Empezar desde cero" },
+      { id: "college", label: "Entender los requisitos universitarios" },
+      { id: "check_track", label: "Verificar si mi hijo va por buen camino" },
+      { id: "scratch", label: "Empezar desde cero" },
     ],
     gradeTitle: "Cuéntanos un poco sobre tu hijo",
     gradeLabel: "Selecciona el Nivel Educativo de Tu Hijo",
@@ -101,35 +102,34 @@ export const translations = {
   },
 };
 
-export const helpContent = {
-  en: {
-    landing:    ["What is Omni?", "How does this work?", "Is this advice accurate?"],
-    intent:     ["Why does intent matter?", "Can I change my answer later?"],
-    grade:      ["Why does grade level matter?", "What if my child is between levels?"],
-    academic:   ["What does 'needs support' mean?", "How does this affect the plan?"],
-    interests:  ["What if my child is undecided?", "Can I pick multiple interests?"],
-    preference: ["What does 'stress vs competitiveness' mean?", "Can I be somewhere in the middle?"],
-    simulation: ["What does this path mean?", "How accurate are these projections?", "What if my child changes direction?"],
-    comparison: ["How do I read this table?", "What is 'college competitiveness'?", "Most common choice for similar students"],
-    chat:       ["What should I type here?", "Will this change the plan?", "How does Omni use my answers?"],
-    final:      ["How do I adjust decisions?", "Can I save and come back?", "What does 'next milestone' mean?"],
-  },
-  es: {
-    landing:    ["¿Qué es Omni?", "¿Cómo funciona esto?", "¿Es preciso este consejo?"],
-    intent:     ["¿Por qué importa la intención?", "¿Puedo cambiar mi respuesta?"],
-    grade:      ["¿Por qué importa el nivel escolar?", "¿Qué pasa si está entre niveles?"],
-    academic:   ["¿Qué significa 'necesita apoyo'?", "¿Cómo afecta esto el plan?"],
-    interests:  ["¿Qué si aún no sabe?", "¿Puedo elegir varios intereses?"],
-    preference: ["¿Qué significa estrés vs competitividad?", "¿Puedo estar en el medio?"],
-    simulation: ["¿Qué significa este camino?", "¿Qué tan precisas son las proyecciones?"],
-    comparison: ["¿Cómo leo esta tabla?", "¿Qué es la competitividad universitaria?"],
-    chat:       ["¿Qué debo escribir aquí?", "¿Esto cambiará el plan?", "¿Cómo usa Omni mis respuestas?"],
-    final:      ["¿Cómo ajusto las decisiones?", "¿Puedo guardar y volver?", "¿Qué significa 'próximo hito'?"],
-  },
-};
-
-/** Hook — returns the translation object for the current language */
 export function useTranslation() {
   const { lang } = useApp();
   return translations[lang] ?? translations.en;
 }
+
+export const helpContent = {
+  en: {
+    landing: ["What is Omni?", "How does this work?", "Is this advice accurate?"],
+    intent: ["Why does intent matter?", "Can I change my answer later?"],
+    grade: ["Why does grade level matter?", "What if my child is between levels?"],
+    academic: ["What does 'needs support' mean?", "How does this affect the plan?"],
+    interests: ["What if my child is undecided?", "Can I pick multiple interests?"],
+    preference: ["What does 'stress vs competitiveness' mean?", "Can I be somewhere in the middle?"],
+    simulation: ["What does this path mean?", "How accurate are these projections?", "What if my child changes direction?"],
+    comparison: ["How do I read this table?", "What is 'college competitiveness'?", "Most common choice for similar students"],
+    chat: ["What should I type here?", "Will this change the plan?", "How does Omni use my answers?"],
+    final: ["How do I adjust decisions?", "Can I save and come back?", "What does 'next milestone' mean?"],
+  },
+  es: {
+    landing: ["¿Qué es Omni?", "¿Cómo funciona esto?", "¿Es preciso este consejo?"],
+    intent: ["¿Por qué importa la intención?", "¿Puedo cambiar mi respuesta?"],
+    grade: ["¿Por qué importa el nivel escolar?", "¿Qué pasa si está entre niveles?"],
+    academic: ["¿Qué significa 'necesita apoyo'?", "¿Cómo afecta esto el plan?"],
+    interests: ["¿Qué si aún no sabe?", "¿Puedo elegir varios intereses?"],
+    preference: ["¿Qué significa estrés vs competitividad?", "¿Puedo estar en el medio?"],
+    simulation: ["¿Qué significa este camino?", "¿Qué tan precisas son las proyecciones?"],
+    comparison: ["¿Cómo leo esta tabla?", "¿Qué es la competitividad universitaria?"],
+    chat: ["¿Qué debo escribir aquí?", "¿Esto cambiará el plan?", "¿Cómo usa Omni mis respuestas?"],
+    final: ["¿Cómo ajusto las decisiones?", "¿Puedo guardar y volver?", "¿Qué significa 'próximo hito'?"],
+  },
+};

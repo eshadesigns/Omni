@@ -3,7 +3,7 @@
 // Handles the conversational chatbot refinement system.
 // ─────────────────────────────────────────────
 
-import { callClaude } from "./api";
+import { callClaude } from "../services/api";
 
 /**
  * Builds the system context string for the chat.

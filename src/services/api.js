@@ -1,4 +1,4 @@
-// src/engines/api.js
+// src/services/api.js
 // ─────────────────────────────────────────────
 // Single source of truth for all Claude API calls.
 // API key and model are read from environment variables — never hardcoded.

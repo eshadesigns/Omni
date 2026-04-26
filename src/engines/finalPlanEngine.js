@@ -3,7 +3,7 @@
 // Generates the final plan summary: decisions made, next milestone, 90-day focus.
 // ─────────────────────────────────────────────
 
-import { callClaudeJSON } from "./api";
+import { callClaudeJSON } from "../services/api";
 
 const FALLBACK = {
   decisions: "Enrolled in Honors Math track, prioritized STEM extracurriculars, planned SAT prep starting sophomore year",

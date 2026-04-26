@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { useApp } from "../../context/AppContext";
-import { helpContent } from "../../i18n/translations";
+import { helpContent } from "../../utils/translations";
 import { answerHelpQuestion } from "../../engines/chatEngine";
 
 // ── Language Toggle ──────────────────────────

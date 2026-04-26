@@ -4,7 +4,7 @@
 // based on the user's profile. All outputs are dynamic — nothing hardcoded.
 // ─────────────────────────────────────────────
 
-import { callClaudeJSON } from "./api";
+import { callClaudeJSON } from "../services/api";
 
 const FALLBACK = {
   competitive: {

@@ -55,7 +55,7 @@ function OmniRouter() {
 
   function goTo(target) {
     if (target === "simulation") loadSimulation();
-    if (target === "final")      loadFinalPlan();
+    if (target === "final") loadFinalPlan();
     setScreen(target);
   }
 
@@ -67,7 +67,23 @@ function OmniRouter() {
 
   return (
     <div style={{ fontFamily: "serif", minHeight: "100vh" }}>
-      {screen !== "landing" && <ProgressBar current={currentIdx} total={FLOW.length - 1} />}
+
+      {/* DEBUG (REMOVE LATER) */}
+      <div style={{
+        position: "fixed",
+        top: 10,
+        left: 10,
+        background: "yellow",
+        padding: 6,
+        zIndex: 9999,
+        fontSize: 12
+      }}>
+        APP LOADED
+      </div>
+
+      {screen !== "landing" && (
+        <ProgressBar current={currentIdx} total={FLOW.length - 1} />
+      )}
 
       {screen === "landing"    && <LandingScreen    onNext={next} />}
       {screen === "intent"     && <IntentScreen     {...screenProps} />}
@@ -75,10 +91,18 @@ function OmniRouter() {
       {screen === "academic"   && <AcademicScreen   {...screenProps} />}
       {screen === "interests"  && <InterestsScreen  {...screenProps} />}
       {screen === "preference" && <PreferenceScreen {...screenProps} />}
-      {screen === "simulation" && <SimulationScreen {...screenProps} simData={simData} loading={simLoading} />}
-      {screen === "comparison" && <ComparisonScreen {...screenProps} simData={simData} />}
-      {screen === "chat"       && <ChatScreen       {...screenProps} />}
-      {screen === "final"      && (
+      {screen === "simulation" && (
+        <SimulationScreen
+          {...screenProps}
+          simData={simData}
+          loading={simLoading}
+        />
+      )}
+      {screen === "comparison" && (
+        <ComparisonScreen {...screenProps} simData={simData} />
+      )}
+      {screen === "chat" && <ChatScreen {...screenProps} />}
+      {screen === "final" && (
         <FinalScreen
           onBack={back}
           finalData={finalData}
@@ -90,6 +114,7 @@ function OmniRouter() {
     </div>
   );
 }
+
 
 export default function App() {
   return (
