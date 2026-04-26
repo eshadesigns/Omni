@@ -6,7 +6,22 @@
 
 import { createContext, useContext, useState } from "react";
 
-export const AppContext = createContext(null);
+const EMPTY_APP_CONTEXT = {
+  lang: "en",
+  setLang: () => {},
+  userState: {
+    intent: null,
+    gradeLevel: null,
+    academicLevel: null,
+    interests: null,
+    preferenceWeight: null,
+    chatHistory: [],
+  },
+  updateState: () => {},
+  resetState: () => {},
+};
+
+export const AppContext = createContext(EMPTY_APP_CONTEXT);
 
 export const INITIAL_STATE = {
   intent: null,           // "class_help" | "college" | "check_track" | "scratch"
@@ -14,7 +29,7 @@ export const INITIAL_STATE = {
   academicLevel: null,    // "Needs support" | "On track" | "Advanced"
   interests: null,        // "STEM" | "Business" | "Creative" | "Undecided"
   preferenceWeight: null, // "low_stress" | "competitive"
-  chatContext: null,      // free-text refinement from the chat screen
+  chatHistory: [],        // full chat conversation for AI context
 };
 
 export function AppProvider({ children }) {
@@ -39,6 +54,10 @@ export function AppProvider({ children }) {
 /** Convenience hook — throws if used outside AppProvider */
 export function useApp() {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used inside <AppProvider>");
+
+  if (!ctx) {
+    throw new Error("AppContext is missing. Make sure AppProvider wraps the app.");
+  }
+
   return ctx;
 }

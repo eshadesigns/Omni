@@ -5,7 +5,7 @@ import { LanguageToggle, HelpButton, BackButton, PrimaryButton } from "../ui";
 
 const PATH_COLORS = ["#F4C14F", "#FF6EB4", "#8EC8C8"];
 
-export default function SimulationScreen({ onNext, onBack, simData, loading }) {
+export default function SimulationScreen({ onNext, onBack, simData, loading, error, onRetry }) {
   const { lang } = useApp();
   const t = useTranslation();
   const [selected, setSelected] = useState(null);
@@ -22,6 +22,12 @@ export default function SimulationScreen({ onNext, onBack, simData, loading }) {
         <div style={{ textAlign: "center", color: "#fff", fontFamily: "serif", fontSize: 18, marginTop: 60 }}>
           <div style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
           {t.generating}
+        </div>
+      ) : error ? (
+        <div style={{ textAlign: "center", color: "#FFB3B3", fontFamily: "serif", fontSize: 16, marginTop: 60, maxWidth: 700, marginLeft: "auto", marginRight: "auto" }}>
+          <div style={{ marginBottom: 16 }}>Something went wrong while loading the simulation.</div>
+          <div style={{ marginBottom: 24, fontSize: 14 }}>{error.reason || error.error}</div>
+          <PrimaryButton onClick={onRetry}>Try again</PrimaryButton>
         </div>
       ) : (
         <>

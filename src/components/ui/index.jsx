@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { useApp } from "../../context/AppContext";
 import { helpContent } from "../../utils/translations";
-import { answerHelpQuestion } from "../../engines/chatEngine";
+import { answerHelpQuestion } from "../../services/aiService";
 
 // ── Language Toggle ──────────────────────────
 
@@ -38,6 +38,7 @@ export function HelpButton({ screen }) {
   const items = helpContent[lang]?.[screen] ?? [];
 
   async function askQuestion(question) {
+      console.log("HELP CLICKED:", question); // 👈 ADD THIS
     setActiveQ(question);
     setAnswer("");
     setAnswerLoading(true);

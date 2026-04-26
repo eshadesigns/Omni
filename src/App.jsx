@@ -4,10 +4,9 @@
 // and passes only what each screen needs.
 // ─────────────────────────────────────────────
 
-import { useState } from "react";
+import { useState, Component } from "react";
 import { AppProvider, useApp } from "./context/AppContext";
-import { generateSimulation } from "./engines/simulationEngine";
-import { generateFinalPlan } from "./engines/finalPlanEngine";
+import * as aiService from "./services/aiService";
 import { ProgressBar } from "./components/ui";
 
 // Screens
@@ -28,29 +27,108 @@ const FLOW = [
   "comparison", "chat", "final",
 ];
 
+class ErrorBoundary extends Component {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("[ErrorBoundary]", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ minHeight: "100vh", padding: 32, fontFamily: "serif", color: "#2C2A64" }}>
+          <h1>Something went wrong.</h1>
+          <p>Please reload to continue.</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ marginTop: 20, padding: "12px 20px", borderRadius: 10, border: "none", background: "#1f60ff", color: "white", cursor: "pointer" }}
+          >
+            Reload
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 function OmniRouter() {
   const { lang, userState } = useApp();
   const [screen, setScreen]         = useState("landing");
   const [simData, setSimData]       = useState(null);
   const [simLoading, setSimLoading] = useState(false);
+  const [simError, setSimError]     = useState(null);
   const [finalData, setFinalData]   = useState(null);
   const [finalLoading, setFinalLoading] = useState(false);
+  const [finalError, setFinalError] = useState(null);
 
-  const currentIdx = FLOW.indexOf(screen);
+  const safeScreen = FLOW.includes(screen) ? screen : "landing";
+  const currentIdx = FLOW.indexOf(safeScreen);
 
   async function loadSimulation() {
     if (simData) return;
     setSimLoading(true);
-    const data = await generateSimulation(userState, lang);
-    setSimData(data);
-    setSimLoading(false);
+    setSimError(null);
+    try {
+      const result = await aiService.generate({
+        mode: "simulation",
+        context: {
+          userProfile: userState || {},
+          conversationHistory: userState?.chatHistory || [],
+          currentScreenInputs: {},
+        },
+        lang,
+      });
+
+      if (result.error) {
+        setSimError(result);
+        setSimData(null);
+      } else {
+        setSimData(result);
+      }
+    } catch (err) {
+      console.error("[App] loadSimulation failed", err);
+      setSimError({ error: "unexpected_error", reason: err.message });
+      setSimData(null);
+    } finally {
+      setSimLoading(false);
+    }
   }
 
   async function loadFinalPlan() {
+    if (finalData) return;
     setFinalLoading(true);
-    const data = await generateFinalPlan(userState, lang);
-    setFinalData(data);
-    setFinalLoading(false);
+    setFinalError(null);
+    try {
+      const result = await aiService.generate({
+        mode: "final",
+        context: {
+          userProfile: userState || {},
+          conversationHistory: userState?.chatHistory || [],
+          currentScreenInputs: {},
+        },
+        lang,
+      });
+
+      if (result.error) {
+        setFinalError(result);
+        setFinalData(null);
+      } else {
+        setFinalData(result);
+      }
+    } catch (err) {
+      console.error("[App] loadFinalPlan failed", err);
+      setFinalError({ error: "unexpected_error", reason: err.message });
+      setFinalData(null);
+    } finally {
+      setFinalLoading(false);
+    }
   }
 
   function goTo(target) {
@@ -68,45 +146,35 @@ function OmniRouter() {
   return (
     <div style={{ fontFamily: "serif", minHeight: "100vh" }}>
 
-      {/* DEBUG (REMOVE LATER) */}
-      <div style={{
-        position: "fixed",
-        top: 10,
-        left: 10,
-        background: "yellow",
-        padding: 6,
-        zIndex: 9999,
-        fontSize: 12
-      }}>
-        APP LOADED
-      </div>
-
-      {screen !== "landing" && (
+      {safeScreen !== "landing" && (
         <ProgressBar current={currentIdx} total={FLOW.length - 1} />
       )}
 
-      {screen === "landing"    && <LandingScreen    onNext={next} />}
-      {screen === "intent"     && <IntentScreen     {...screenProps} />}
-      {screen === "grade"      && <GradeScreen      {...screenProps} />}
-      {screen === "academic"   && <AcademicScreen   {...screenProps} />}
-      {screen === "interests"  && <InterestsScreen  {...screenProps} />}
-      {screen === "preference" && <PreferenceScreen {...screenProps} />}
-      {screen === "simulation" && (
+      {safeScreen === "landing"    && <LandingScreen    onNext={next} />}
+      {safeScreen === "intent"     && <IntentScreen     {...screenProps} />}
+      {safeScreen === "grade"      && <GradeScreen      {...screenProps} />}
+      {safeScreen === "academic"   && <AcademicScreen   {...screenProps} />}
+      {safeScreen === "interests"  && <InterestsScreen  {...screenProps} />}
+      {safeScreen === "preference" && <PreferenceScreen {...screenProps} />}
+      {safeScreen === "simulation" && (
         <SimulationScreen
           {...screenProps}
           simData={simData}
           loading={simLoading}
+          error={simError}
+          onRetry={loadSimulation}
         />
       )}
-      {screen === "comparison" && (
+      {safeScreen === "comparison" && (
         <ComparisonScreen {...screenProps} simData={simData} />
       )}
-      {screen === "chat" && <ChatScreen {...screenProps} />}
-      {screen === "final" && (
+      {safeScreen === "chat" && <ChatScreen {...screenProps} />}
+      {safeScreen === "final" && (
         <FinalScreen
           onBack={back}
           finalData={finalData}
           loading={finalLoading}
+          error={finalError}
           onRestart={restart}
           onRegenerateFinal={loadFinalPlan}
         />
@@ -119,7 +187,9 @@ function OmniRouter() {
 export default function App() {
   return (
     <AppProvider>
-      <OmniRouter />
+      <ErrorBoundary>
+        <OmniRouter />
+      </ErrorBoundary>
     </AppProvider>
   );
 }

@@ -2,86 +2,164 @@ import { useState, useEffect, useRef } from "react";
 import { useApp } from "../../context/AppContext";
 import { useTranslation } from "../../utils/translations";
 import { LanguageToggle, HelpButton, BackButton, PrimaryButton } from "../ui";
-import { buildWelcomeMessage, sendChatMessage } from "../../engines/chatEngine";
+import { generate } from "../../services/aiService";
+
+function buildWelcomeMessage(userState, lang) {
+  if (lang === "es") {
+    return `¡Hola! Soy Omni. Revisé el perfil de tu hijo — ${userState.gradeLevel || "nivel escolar"}, nivel académico ${userState.academicLevel || "no especificado"}, con interés en ${userState.interests || "estudios generales"}. ¿Hay algo específico que quieras que considere, o algo que me preocupe que no haya mencionado todavía?`;
+  }
+  return `Hi! I'm Omni. I've reviewed your child's profile — ${userState.gradeLevel || "grade not set"}, ${userState.academicLevel || "academic level not set"}, interested in ${userState.interests || "general studies"}. Is there anything specific you'd like me to factor in, or anything about your child I should know that you haven't mentioned yet?`;
+}
 
 export default function ChatScreen({ onNext, onBack }) {
   const { lang, userState, updateState } = useApp();
   const t = useTranslation();
-  const [messages, setMessages] = useState([]);
+
+  const [messages, setMessages] = useState(
+    userState?.chatHistory?.length
+      ? userState.chatHistory
+      : [
+          {
+            role: "assistant",
+            content: buildWelcomeMessage(userState, lang),
+          },
+        ]
+  );
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const chatRef = useRef(null);
 
   useEffect(() => {
-    setMessages([{ role: "assistant", content: buildWelcomeMessage(userState, lang) }]);
-  }, []);
+    if (!userState) return;
+
+    if (!userState.chatHistory || !userState.chatHistory.length) {
+      const welcome = [
+        {
+          role: "assistant",
+          content: buildWelcomeMessage(userState, lang),
+        },
+      ];
+      setMessages(welcome);
+      updateState({ chatHistory: welcome });
+    }
+  }, [userState, lang, updateState]);
 
   async function send() {
     if (!input.trim() || loading) return;
+
     const userMsg = { role: "user", content: input };
-    const next = [...messages, userMsg];
-    setMessages(next);
+    const updated = [...messages, userMsg];
+
+    setMessages(updated);
     setInput("");
     setLoading(true);
-    updateState({ chatContext: input });
+    setError(null);
 
-    const reply = await sendChatMessage(next, userState, lang);
-    setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+    updateState({ chatHistory: updated });
+
+    try {
+      const result = await generate({
+        mode: "chat",
+        context: {
+          userProfile: userState,
+          conversationHistory: updated,
+          currentScreenInputs: {},
+        },
+        lang,
+      });
+
+      if (result.error) {
+        setError(result.reason || (lang === "en" ? "Something went wrong. Try again." : "Algo salió mal. Intenta de nuevo."));
+      } else {
+        const assistantMessage = { role: "assistant", content: result.message };
+        const nextMessages = [...updated, assistantMessage];
+        setMessages(nextMessages);
+        updateState({ chatHistory: nextMessages });
+      }
+    } catch (err) {
+      console.error(err);
+      setError(lang === "en" ? "Something went wrong. Try again." : "Algo salió mal. Intenta de nuevo.");
+    }
+
     setLoading(false);
-    setTimeout(() => chatRef.current?.scrollTo(0, 99999), 80);
+
+    setTimeout(() => {
+      chatRef.current?.scrollTo(0, 99999);
+    }, 50);
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#6B2FBE", padding: "32px 32px 80px", position: "relative" }}>
+    <div style={{ minHeight: "100vh", background: "#6B2FBE", padding: 32 }}>
       <LanguageToggle />
       <BackButton onClick={onBack} label={t.back} />
-      <h2 style={{ color: "#F4C14F", fontFamily: "serif", fontWeight: 700, fontSize: 18, marginTop: 16, marginBottom: 24 }}>
+
+      <h2 style={{ color: "#F4C14F", fontFamily: "serif", marginTop: 16 }}>
         {t.chatTitle}
       </h2>
 
-      {/* Terminal-style chat window */}
-      <div style={{ maxWidth: 900, margin: "0 auto", background: "#4A2090", borderRadius: 16, border: "3px solid #222", overflow: "hidden", boxShadow: "4px 4px 0 #0006" }}>
-        {/* Title bar */}
-        <div style={{ background: "#3A1878", height: 28, display: "flex", alignItems: "center", padding: "0 12px", gap: 6 }}>
-          {["#FF5F57", "#FEBC2E", "#28C840"].map((c, i) => (
-            <div key={i} style={{ width: 12, height: 12, borderRadius: "50%", background: c }} />
-          ))}
-        </div>
+      <div
+        ref={chatRef}
+        style={{
+          maxWidth: 900,
+          margin: "20px auto",
+          height: 320,
+          overflowY: "auto",
+          background: "#4A2090",
+          padding: 16,
+          borderRadius: 12,
+        }}
+      >
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            style={{
+              textAlign: m.role === "user" ? "right" : "left",
+              marginBottom: 10,
+            }}
+          >
+            <span
+              style={{
+                display: "inline-block",
+                padding: "10px 14px",
+                borderRadius: 10,
+                background: m.role === "user" ? "#F4C14F" : "#fff",
+              }}
+            >
+              {m.content}
+            </span>
+          </div>
+        ))}
 
-        {/* Messages */}
-        <div ref={chatRef} style={{ height: 300, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={{ maxWidth: "75%", padding: "10px 14px", borderRadius: 12, background: m.role === "user" ? "#F4C14F" : "#fff", color: "#2C1810", fontSize: 14, fontFamily: "serif", lineHeight: 1.5 }}>
-                {m.content}
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={{ background: "#fff", padding: "10px 14px", borderRadius: 12, color: "#888", fontSize: 14, fontStyle: "italic" }}>
-                {t.generating}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Input */}
-        <div style={{ background: "#3A1878", padding: "12px 16px", display: "flex", gap: 8 }}>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && send()}
-            placeholder={t.chatPlaceholder}
-            style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "2px solid #555", fontSize: 14, fontFamily: "serif", background: "#fff", color: "#111" }}
-          />
-          <button onClick={send} style={{ background: "#6B2FBE", border: "2px solid #fff", borderRadius: 8, width: 44, height: 44, cursor: "pointer", color: "#fff", fontSize: 18 }}>›</button>
-        </div>
+        {loading && (
+          <div style={{ color: "#fff", fontStyle: "italic" }}>
+            {t.generating}
+          </div>
+        )}
       </div>
 
-      <div style={{ textAlign: "center", marginTop: 32 }}>
+      {error && (
+        <div style={{ color: "#FFB3B3", maxWidth: 900, margin: "12px auto", fontSize: 14 }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, maxWidth: 900, margin: "0 auto" }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          style={{ flex: 1, padding: 12 }}
+          placeholder={t.chatPlaceholder}
+        />
+        <button onClick={send}>Send</button>
+      </div>
+
+      <div style={{ textAlign: "center", marginTop: 24 }}>
         <PrimaryButton onClick={onNext}>{t.next}</PrimaryButton>
       </div>
+
       <HelpButton screen="chat" />
     </div>
   );
