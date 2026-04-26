@@ -1,19 +1,28 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp } from "../../context/AppContext";
 import { useTranslation } from "../../utils/translations";
-import { LanguageToggle, HelpButton, BackButton, NotebookCard } from "../ui";
+import {
+  LanguageToggle,
+  HelpButton,
+  BackButton,
+  NotebookCard,
+} from "../ui";
+import { speak } from "../../services/voiceEngine";
+
 export default function FinalScreen({
   onBack,
   finalData,
   loading,
   error,
   onRestart,
-  onRegenerateFinal
+  onRegenerateFinal,
 }) {
   const { lang } = useApp();
   const t = useTranslation();
 
-  // Regenerate when language changes
+  const [voiceActive, setVoiceActive] = useState(false);
+  const abortRef = useRef(false);
+
   const prevLang = useRef(lang);
 
   useEffect(() => {
@@ -23,13 +32,69 @@ export default function FinalScreen({
     }
   }, [lang]);
 
-  const cardTitles = t.finalCards?.[lang] ?? t.finalCards?.en ?? ["Key decisions made", "Next milestone", "What to focus on now"];
+  const cardTitles =
+    t.finalCards?.[lang] ??
+    t.finalCards?.en ??
+    ["Key decisions made", "Next milestone", "What to focus on now"];
 
   const resolvedCards = cardTitles.map((card, index) => ({
     title: card.title || "",
-    content: [finalData?.summary, finalData?.recommendedPath, Array.isArray(finalData?.actionSteps) ? finalData.actionSteps.join(" \n") : finalData?.actionSteps || "…"]
-      [index] || "…",
+    content:
+      [
+        finalData?.summary,
+        finalData?.recommendedPath,
+        Array.isArray(finalData?.actionSteps)
+          ? finalData.actionSteps.join("\n")
+          : finalData?.actionSteps || "…",
+      ][index] || "…",
   }));
+
+  const buildNarration = () => {
+    const steps = finalData?.actionSteps || [];
+
+    const intro =
+      lang === "es"
+        ? "Voy a guiarte paso a paso por el plan académico."
+        : "I’m going to walk you through the academic roadmap step by step.";
+
+    const summary = finalData?.summary || "";
+
+    const stepsText = steps
+      .map((s, i) =>
+        lang === "es" ? `Paso ${i + 1}: ${s}` : `Step ${i + 1}: ${s}`
+      )
+      .join(". ");
+
+    const closing =
+      lang === "es"
+        ? "Si quieres, podemos ajustarlo juntos."
+        : "If you want, we can refine this together.";
+
+    return `${intro}. ${summary}. ${stepsText}. ${closing}`;
+  };
+
+  const startVoiceCoach = async () => {
+    if (!finalData) return;
+
+    abortRef.current = false;
+    setVoiceActive(true);
+
+    const narration = buildNarration();
+
+    try {
+      await speak(narration, lang);
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (!abortRef.current) setVoiceActive(false);
+  };
+
+  const stopVoiceCoach = () => {
+    abortRef.current = true;
+    window.speechSynthesis.cancel();
+    setVoiceActive(false);
+  };
 
   const actions = [
     { label: t.adjust, color: "#FF6EB4", onClick: onBack },
@@ -42,96 +107,61 @@ export default function FinalScreen({
   ];
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#6B2FBE",
-      padding: "32px 32px 80px",
-      position: "relative"
-    }}>
+    <div style={{ minHeight: "100vh", background: "#6B2FBE", padding: 32 }}>
       <LanguageToggle />
       <BackButton onClick={onBack} label={t.back} />
 
-      <h2 style={{
-        color: "#F4C14F",
-        fontFamily: "serif",
-        fontWeight: 700,
-        fontSize: 22,
-        marginTop: 16,
-        marginBottom: 32
-      }}>
+      <h2 style={{ color: "#F4C14F", fontFamily: "serif" }}>
         {t.finalTitle}
       </h2>
 
+      {!loading && !error && (
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <button
+            onClick={voiceActive ? stopVoiceCoach : startVoiceCoach}
+            style={{
+              background: voiceActive ? "#ff4d4d" : "#F4C14F",
+              border: "none",
+              borderRadius: 24,
+              padding: "14px 20px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            🔊 {voiceActive ? "Stop" : "Talk me through it"}
+          </button>
+        </div>
+      )}
+
       {loading ? (
-        <div style={{
-          textAlign: "center",
-          color: "#fff",
-          fontFamily: "serif",
-          fontSize: 18,
-          marginTop: 60
-        }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
+        <div style={{ color: "#fff", textAlign: "center" }}>
           {t.generating}
         </div>
       ) : error ? (
-        <div style={{ textAlign: "center", color: "#FFB3B3", fontFamily: "serif", fontSize: 16, marginTop: 60, maxWidth: 700, marginLeft: "auto", marginRight: "auto" }}>
-          <div style={{ marginBottom: 16 }}>Something went wrong while loading the final plan.</div>
-          <div style={{ marginBottom: 24, fontSize: 14 }}>{error.reason || error.error}</div>
-          <button
-            onClick={onRegenerateFinal}
-            style={{
-              background: "#FF8C5A",
-              border: "none",
-              borderRadius: 24,
-              padding: "16px 28px",
-              fontSize: 15,
-              fontWeight: 700,
-              color: "#2C1810",
-              cursor: "pointer",
-              fontFamily: "serif",
-              boxShadow: "3px 3px 0 #0003"
-            }}
-          >
-            Retry
-          </button>
+        <div style={{ color: "#FFB3B3", textAlign: "center" }}>
+          {error.reason || error.error}
         </div>
       ) : (
         <>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 20,
-            maxWidth: 900,
-            margin: "0 auto 48px",
-            position: "relative"
-          }}>
-            <div style={{
-              position: "absolute",
-              top: "30%",
-              left: "10%",
-              right: "10%",
-              height: "40%",
-              border: "2px dashed #fff4",
-              borderRadius: 8,
-              zIndex: 0
-            }} />
-
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 20,
+              maxWidth: 900,
+              margin: "0 auto 48px",
+            }}
+          >
             {resolvedCards.map((card, i) => (
-              <div key={i} style={{ position: "relative", zIndex: 1 }}>
-                <NotebookCard
-                  title={card.title}
-                  content={String(card.content)}
-                />
-              </div>
+              <NotebookCard
+                key={i}
+                title={card.title}
+                content={String(card.content)}
+              />
             ))}
           </div>
 
-          <div style={{
-            display: "flex",
-            gap: 20,
-            justifyContent: "center",
-            flexWrap: "wrap"
-          }}>
+          <div style={{ display: "flex", justifyContent: "center", gap: 20 }}>
             {actions.map((btn, i) => (
               <button
                 key={i}
@@ -141,12 +171,7 @@ export default function FinalScreen({
                   border: "none",
                   borderRadius: 24,
                   padding: "16px 28px",
-                  fontSize: 15,
                   fontWeight: 700,
-                  color: "#2C1810",
-                  cursor: "pointer",
-                  fontFamily: "serif",
-                  boxShadow: "3px 3px 0 #0003"
                 }}
               >
                 {btn.label}

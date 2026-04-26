@@ -1,14 +1,28 @@
 import { useState, useEffect, useRef } from "react";
 import { useApp } from "../../context/AppContext";
 import { useTranslation } from "../../utils/translations";
-import { LanguageToggle, HelpButton, BackButton, PrimaryButton } from "../ui";
+import { LanguageToggle, HelpButton, BackButton } from "../ui";
 import { generate } from "../../services/aiService";
+import { speak } from "../../services/voiceEngine";
 
 function buildWelcomeMessage(userState, lang) {
   if (lang === "es") {
-    return `¡Hola! Soy Omni. Revisé el perfil de tu hijo — ${userState.gradeLevel || "nivel escolar"}, nivel académico ${userState.academicLevel || "no especificado"}, con interés en ${userState.interests || "estudios generales"}. ¿Hay algo específico que quieras que considere, o algo que me preocupe que no haya mencionado todavía?`;
+    return `¡Hola! Soy Omni. Revisé el perfil de tu hijo — ${
+      userState.gradeLevel || "nivel escolar"
+    }, nivel académico ${
+      userState.academicLevel || "no especificado"
+    }, con interés en ${
+      userState.interests || "estudios generales"
+    }. ¿Hay algo específico que quieras que considere?`;
   }
-  return `Hi! I'm Omni. I've reviewed your child's profile — ${userState.gradeLevel || "grade not set"}, ${userState.academicLevel || "academic level not set"}, interested in ${userState.interests || "general studies"}. Is there anything specific you'd like me to factor in, or anything about your child I should know that you haven't mentioned yet?`;
+
+  return `Hi! I'm Omni. I've reviewed your child's profile — ${
+    userState.gradeLevel || "grade not set"
+  }, ${
+    userState.academicLevel || "academic level not set"
+  }, interested in ${
+    userState.interests || "general studies"
+  }. Is there anything you'd like me to consider?`;
 }
 
 export default function ChatScreen({ onNext, onBack }) {
@@ -25,6 +39,7 @@ export default function ChatScreen({ onNext, onBack }) {
           },
         ]
   );
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -32,19 +47,12 @@ export default function ChatScreen({ onNext, onBack }) {
   const chatRef = useRef(null);
 
   useEffect(() => {
-    if (!userState) return;
+    updateState({ chatHistory: messages });
+  }, [messages]);
 
-    if (!userState.chatHistory || !userState.chatHistory.length) {
-      const welcome = [
-        {
-          role: "assistant",
-          content: buildWelcomeMessage(userState, lang),
-        },
-      ];
-      setMessages(welcome);
-      updateState({ chatHistory: welcome });
-    }
-  }, [userState, lang, updateState]);
+  async function speakMessage(text) {
+    await speak(text, lang);
+  }
 
   async function send() {
     if (!input.trim() || loading) return;
@@ -71,16 +79,26 @@ export default function ChatScreen({ onNext, onBack }) {
       });
 
       if (result.error) {
-        setError(result.reason || (lang === "en" ? "Something went wrong. Try again." : "Algo salió mal. Intenta de nuevo."));
+        setError(
+          lang === "en"
+            ? "Something went wrong. Try again."
+            : "Algo salió mal. Intenta de nuevo."
+        );
       } else {
-        const assistantMessage = { role: "assistant", content: result.message };
-        const nextMessages = [...updated, assistantMessage];
-        setMessages(nextMessages);
-        updateState({ chatHistory: nextMessages });
+        const assistantMessage = {
+          role: "assistant",
+          content: result.message,
+        };
+
+        setMessages([...updated, assistantMessage]);
       }
     } catch (err) {
       console.error(err);
-      setError(lang === "en" ? "Something went wrong. Try again." : "Algo salió mal. Intenta de nuevo.");
+      setError(
+        lang === "en"
+          ? "Network error. Try again."
+          : "Error de red. Intenta de nuevo."
+      );
     }
 
     setLoading(false);
@@ -88,6 +106,17 @@ export default function ChatScreen({ onNext, onBack }) {
     setTimeout(() => {
       chatRef.current?.scrollTo(0, 99999);
     }, 50);
+  }
+
+  // 🔊 PLAY LAST MESSAGE (NO TRANSLATION LOGIC HERE)
+  async function playLastAssistantMessage() {
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant");
+
+    if (lastAssistant) {
+      await speakMessage(lastAssistant.content);
+    }
   }
 
   return (
@@ -140,12 +169,21 @@ export default function ChatScreen({ onNext, onBack }) {
       </div>
 
       {error && (
-        <div style={{ color: "#FFB3B3", maxWidth: 900, margin: "12px auto", fontSize: 14 }}>
+        <div style={{ color: "#FFB3B3", maxWidth: 900, margin: "12px auto" }}>
           {error}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, maxWidth: 900, margin: "0 auto" }}>
+      {/* INPUT + SPEAKER BUTTON */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          maxWidth: 900,
+          margin: "0 auto",
+          alignItems: "center",
+        }}
+      >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -153,11 +191,28 @@ export default function ChatScreen({ onNext, onBack }) {
           style={{ flex: 1, padding: 12 }}
           placeholder={t.chatPlaceholder}
         />
+
+        {/* 🔊 SPEAKER */}
+        <button
+          onClick={playLastAssistantMessage}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            border: "none",
+            background: "#F4C14F",
+            cursor: "pointer",
+            fontSize: 18,
+          }}
+        >
+          🔊
+        </button>
+
         <button onClick={send}>Send</button>
       </div>
 
       <div style={{ textAlign: "center", marginTop: 24 }}>
-        <PrimaryButton onClick={onNext}>{t.next}</PrimaryButton>
+        <button onClick={onNext}>{t.next}</button>
       </div>
 
       <HelpButton screen="chat" />
